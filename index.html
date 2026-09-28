@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertex Axioma® - Demo de Auditoría 4.0 & Doble Token</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans p-6 min-h-screen">
+
+    <div class="max-w-4xl mx-auto space-y-6">
+        <!-- Encabezado Institutional -->
+        <div class="border-b border-slate-700 pb-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-cyan-400">VERTEX AXIOMA®</h1>
+                <p class="text-xs text-slate-400">Ecosistema de Integridad Criptográfica & Sello de Conformidad 4.0</p>
+            </div>
+            <span class="bg-cyan-900/50 text-cyan-300 text-xs px-3 py-1 rounded-full border border-cyan-500/30">
+                Entorno de Simulación - Caso Hipotético
+            </span>
+        </div>
+
+        <!-- Formulario: Caso Hipotético de Lote / Factura -->
+        <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 space-y-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">1. Registro de Activo & Transacción</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">ID Hardware / Serial Silicio</label>
+                    <input id="serial" type="text" value="HW-TPM-99482-AR" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">CUIT Emisor / Proveedor</label>
+                    <input id="emisor" type="text" value="30-71123456-8" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">CUIT Receptor / Contribuyente</label>
+                    <input id="receptor" type="text" value="20-35987654-3" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200">
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 pt-2">
+                <button onclick="generarAdnDigital()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-xs px-4 py-2 rounded transition">
+                    Generar ADN Digital (SHA-256)
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel de Doble Token (Handshake) -->
+        <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 space-y-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">2. Convalidación Criptográfica (Doble Token)</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div id="token1_box" class="bg-slate-900 p-3 rounded border border-slate-700">
+                    <p class="font-bold text-slate-400 mb-1">Token 1: Firma Emisor / Homologación</p>
+                    <p id="hash_emisor" class="font-mono text-slate-500 break-all">Esperando generación...</p>
+                </div>
+                <div id="token2_box" class="bg-slate-900 p-3 rounded border border-slate-700">
+                    <p class="font-bold text-slate-400 mb-1">Token 2: Firma Receptor (Conformidad)</p>
+                    <p id="hash_receptor" class="font-mono text-slate-500 break-all">Sin convalidar</p>
+                </div>
+            </div>
+
+            <button id="btn_handshake" onclick="firmarReceptor()" disabled class="bg-slate-700 text-slate-500 font-medium text-xs px-4 py-2 rounded cursor-not-allowed">
+                Firmar Convalidación de Receptor (Segundo Token)
+            </button>
+        </div>
+
+        <!-- Tribunal Tecnológico & Inmutabilidad -->
+        <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">3. Veredicto del Tribunal Tecnológico</h2>
+                <div id="status_badge" class="px-3 py-1 text-xs font-bold rounded bg-slate-700 text-slate-400">
+                    SIN ANCLAR
+                </div>
+            </div>
+
+            <div class="bg-slate-900 p-3 rounded border border-slate-700 font-mono text-xs space-y-1">
+                <p class="text-slate-400">Raíz de Merkle (Root Fingerprint):</p>
+                <p id="merkle_root" class="text-cyan-400 break-all">----------------------------------------------------------------</p>
+            </div>
+
+            <!-- Botones de Test de Fraude -->
+            <div class="pt-2 flex space-x-3">
+                <button id="btn_tamper" onclick="inyectarFraude()" disabled class="border border-red-500/50 text-red-400 hover:bg-red-950/30 font-medium text-xs px-4 py-2 rounded transition">
+                    Simular Inyección de Fraude (Alterar 1 Byte)
+                </button>
+                <button onclick="location.reload()" class="border border-slate-600 text-slate-400 hover:bg-slate-700 font-medium text-xs px-4 py-2 rounded transition">
+                    Reiniciar Demo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let hashOriginal = "";
+        let firmadoEmisor = false;
+        let firmadoReceptor = false;
+
+        function generarAdnDigital() {
+            const serial = document.getElementById("serial").value;
+            const emisor = document.getElementById("emisor").value;
+            const receptor = document.getElementById("receptor").value;
+            const payload = `${serial}|${emisor}|${receptor}|${new Date().toISOString()}`;
+            
+            hashOriginal = CryptoJS.SHA256(payload).toString();
+            
+            document.getElementById("hash_emisor").innerText = hashOriginal;
+            document.getElementById("hash_emisor").className = "font-mono text-cyan-300 break-all";
+            
+            firmadoEmisor = true;
+            const btnHandshake = document.getElementById("btn_handshake");
+            btnHandshake.disabled = false;
+            btnHandshake.className = "bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded transition cursor-pointer";
+        }
+
+        function firmarReceptor() {
+            if (!firmadoEmisor) return;
+            
+            const token2 = CryptoJS.SHA256(hashOriginal + "_CONFORMIDAD_RECEPTOR").toString();
+            document.getElementById("hash_receptor").innerText = token2;
+            document.getElementById("hash_receptor").className = "font-mono text-emerald-400 break-all";
+            
+            const merkleRoot = CryptoJS.SHA256(hashOriginal + token2).toString();
+            document.getElementById("merkle_root").innerText = merkleRoot;
+            
+            const badge = document.getElementById("status_badge");
+            badge.innerText = "PETRIFICADO_E_INTACTO";
+            badge.className = "px-3 py-1 text-xs font-bold rounded bg-emerald-900/60 text-emerald-300 border border-emerald-500/50";
+            
+            document.getElementById("btn_tamper").disabled = false;
+        }
+
+        function inyectarFraude() {
+            const merkleCorrompido = CryptoJS.SHA256(hashOriginal + "_ALTERADO").toString();
+            document.getElementById("merkle_root").innerText = merkleCorrompido;
+            
+            const badge = document.getElementById("status_badge");
+            badge.innerText = "EVIDENCIA_CORROMPIDA (ALERTA DE SEGURIDAD)";
+            badge.className = "px-3 py-1 text-xs font-bold rounded bg-red-900/80 text-red-200 border border-red-500/80 animate-pulse";
+        }
+    </script>
+</body>
+</html>
